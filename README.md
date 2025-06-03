@@ -2,126 +2,115 @@
 
 ## Description
 
-This project implements a Conditional Random Fields (CRF) based machine learning model to parse unstructured French addresses into their structured components. It consists of two main Python scripts:
+This project implements a sequence-to-sequence (Seq2Seq) machine learning model to parse unstructured French addresses into their structured components. The model takes a single French address string as input and outputs a predefined set of address fields. This project is built using Python, TensorFlow/Keras, Pandas, and Scikit-learn.
 
-*   `train_address_parser.py`: For training the CRF model using a provided dataset.
-*   `predict_address_parser.py`: For predicting structured components from new, unstructured addresses using the trained model.
+## Input Data
+
+The model is trained on CSV files containing unstructured addresses and their corresponding structured components.
+
+The CSV file should have the following structure:
+*   **Input Column**: `AdresseNonStructure` (the full, unstructured address string).
+*   **Output Columns**: These are the target fields the model learns to predict.
+    *   `COMPLEMENT_DESTINATAIRE`
+    *   `NUMERO_VOIE`
+    *   `COMPLEMENT_NUMERO_VOIE`
+    *   `TYPE_VOIE`
+    *   `LIBELLE_TYPE_VOIE`
+    *   `VOIE`
+    *   `LIEU_DIT`
+    *   `COMPLEMENT_ADRESSE`
+    *   `CODE_POSTAL`
+    *   `COMMUNE`
+
+Sample data files provided:
+*   `2025_100_Adresses.csv`: A small dataset with 100 addresses, primarily for quick testing and demonstration. The `train.py` script creates a dummy version of this with 8 records if it's not found.
+*   `2025_100k_Adresses.csv`: A larger dataset with 100,000 addresses for more robust model training. (Note: This file is not included in the repository by default due to its size but is expected to be present for full training.)
 
 ## Setup
 
-1.  **Clone the Repository (if applicable):**
-    If you have downloaded this project as a ZIP, extract it. If it's a Git repository, clone it:
-    ```bash
-    git clone <repository_url>
-    cd french-address-parser 
-    ```
-    *(Replace `<repository_url>` with the actual URL and `french-address-parser` with the project's directory name if different).*
-
-2.  **Create a Virtual Environment (Recommended):**
+1.  **Create a Virtual Environment (Recommended)**:
     It's highly recommended to use a virtual environment to manage project dependencies.
     ```bash
-    python -m venv venv
+    python -m venv .venv
+    source .venv/bin/activate  # On Windows use: .venv\Scripts\activate
     ```
-    Activate the virtual environment:
-    *   On Windows:
-        ```bash
-        .\venv\Scripts\activate
-        ```
-    *   On macOS and Linux:
-        ```bash
-        source venv/bin/activate
-        ```
 
-3.  **Install Dependencies:**
-    Install the required Python libraries using the `requirements.txt` file:
+2.  **Install Dependencies**:
+    Install the required Python packages using the `requirements.txt` file:
     ```bash
     pip install -r requirements.txt
     ```
 
-## Data Format for Training
-
-The training script, `train_address_parser.py`, expects a tab-separated CSV file named `address_data.csv` to be present in the root directory of the project.
-
-The CSV file must contain the following columns:
-
-*   `AdresseNonStructuree`: The full, unstructured address string.
-*   `NuméroDansLaVoie`: The street number (e.g., "123", "71 bis").
-*   `ComplementDeNumeroDeVoie`: Any complement to the street number (e.g., "B", "APT 101").
-*   `LibelleTypeDeVoie`: The type of street (e.g., "RUE", "BOULEVARD", "AVENUE").
-*   `NomDeVoie`: The name of the street (e.g., "DE LA PAIX", "VICTOR HUGO").
-*   `LieuDit`: Locality or named place, if applicable (e.g., "LES GRANDES FERMES").
-*   `CodePostal`: The postal code (e.g., "75001", "37550").
-*   `Ville`: The city name (e.g., "PARIS", "ST AVERTIN").
-
-**Important:** Even if a field is not present for a particular address, the column must exist, and the field can be left empty for that row.
-
-**Example `address_data.csv` Snippet:**
-
-```
-AdresseNonStructuree	NuméroDansLaVoie	ComplementDeNumeroDeVoie	LibelleTypeDeVoie	NomDeVoie	LieuDit	CodePostal	Ville
-71 RUE DE GRAND COUR 37550 ST AVERTIN	71		RUE	DE GRAND COUR		37550	ST AVERTIN
-123B BOULEVARD DE LA LIBERTE 75001 PARIS	123	B	BOULEVARD	DE LA LIBERTE		75001	PARIS
-LIEU DIT LES CHAMPS 01234 VILLAGE				LIEU DIT	LES CHAMPS	01234	VILLAGE
-APT 12 45 AVENUE FOCH 69006 LYON	45	APT 12	AVENUE	FOCH		69006	LYON
-```
-*(Note: The example above should be tab-separated in the actual file. The training script's dummy data generator also uses this format.)*
-
-The training script includes a feature to generate a dummy `address_data.csv` with a few examples if the file is not found, allowing for a quick demonstration. For actual training, you should provide your own comprehensive dataset in the format specified above.
-
 ## Training the Model
 
-To train the address parsing model, run the `train_address_parser.py` script from the root directory of the project:
+To train the address parsing model:
 
-```bash
-python train_address_parser.py
-```
+1.  **Run the Training Script**:
+    ```bash
+    python train.py
+    ```
+2.  **Dataset**:
+    *   By default, `train.py` is configured to use the `2025_100_Adresses.csv` file. If this file is not present, the script will automatically generate a small dummy version of it with 8 records for testing purposes.
+    *   To train on the larger dataset, modify the `DATA_FILE_PATH` variable in `train.py` to point to `2025_100k_Adresses.csv`:
+        ```python
+        # In train.py
+        DATA_FILE_PATH = '2025_100k_Adresses.csv'
+        ```
+3.  **Output**:
+    The training process will save the following files:
+    *   `address_parser_model.keras`: The trained Keras model.
+    *   `input_tokenizer.pkl`: The tokenizer for pre-processing input addresses.
+    *   `output_tokenizer.pkl`: The tokenizer for processing output structured fields.
 
-This script will:
-1.  Attempt to load `address_data.csv`. If not found, it will create and use a small dummy dataset for demonstration.
-2.  Process the data and train the CRF model.
-3.  Save the trained model to a file named `address_model.crf` in the root directory.
-4.  Print evaluation metrics to the console if a test set can be created (requires more than a few samples).
+## Making Predictions
 
-## Predicting Addresses
+To use the trained model to parse new addresses:
 
-Once the model is trained and `address_model.crf` is generated, you can use `predict_address_parser.py` to parse new addresses:
+1.  **Run the Prediction Script**:
+    Ensure that the model (`address_parser_model.keras`) and tokenizers (`input_tokenizer.pkl`, `output_tokenizer.pkl`) from the training step are present in the project directory.
+    ```bash
+    python predict.py
+    ```
+2.  **Functionality**:
+    *   The `predict.py` script loads the saved model and tokenizers.
+    *   It contains a list of sample unstructured addresses.
+    *   For each sample address, it preprocesses the input, predicts the structured components, and prints the formatted output.
+3.  **Output Fields**:
+    The predicted structured components correspond to the following fields:
+    *   `COMPLEMENT_DESTINATAIRE`
+    *   `NUMERO_VOIE`
+    *   `COMPLEMENT_NUMERO_VOIE`
+    *   `TYPE_VOIE`
+    *   `LIBELLE_TYPE_VOIE`
+    *   `VOIE`
+    *   `LIEU_DIT`
+    *   `COMPLEMENT_ADRESSE`
+    *   `CODE_POSTAL`
+    *   `COMMUNE`
 
-```bash
-python predict_address_parser.py
-```
+    *Note: The quality of predictions depends heavily on the size and quality of the training data, and the training duration. Predictions from a model trained on the small dummy dataset will not be meaningful.*
 
-This script will:
-1.  Load the `address_model.crf` file.
-2.  Predict and display the structured components for a predefined list of example addresses.
-3.  Enter an interactive mode where you can type an unstructured address, and the script will output the parsed components. Type `quit` to exit the interactive mode.
+## Scripts Overview
 
-Example of interactive usage:
-```
-Loading model from address_model.crf...
-Model loaded successfully.
---- Predicting Example Addresses ---
-... (example predictions) ...
---- Interactive Prediction ---
-Enter an address to parse (or type 'quit' to exit):
-> 15 BIS RUE DES LILAS 75019 PARIS
-Parsed:
-  NuméroDansLaVoie: 15 BIS
-  LibelleTypeDeVoie: RUE
-  NomDeVoie: DES LILAS
-  CodePostal: 75019
-  Ville: PARIS
---------------------
-> quit
-Script execution finished.
-```
+*   **`data_loader.py`**:
+    *   Handles loading data from the input CSV file.
+    *   Performs initial preprocessing, such as handling encoding issues and preparing input (X) and output (y) data structures.
+*   **`model.py`**:
+    *   Defines the sequence-to-sequence (Seq2Seq) neural network architecture using TensorFlow and Keras.
+    *   Includes functions to build, save, and load the Keras model.
+*   **`train.py`**:
+    *   Orchestrates the entire model training pipeline.
+    *   Loads data using `data_loader.py`.
+    *   Prepares and tokenizes input and output sequences, including special tokens (`<START>`, `<END>`, `<SEP>`).
+    *   Splits data into training and validation sets.
+    *   Builds the model using `model.py`.
+    *   Trains the model and saves the trained model and tokenizers.
+*   **`predict.py`**:
+    *   Loads the trained model and tokenizers.
+    *   Reconstructs the encoder and decoder parts of the Seq2Seq model for inference.
+    *   Provides functions to predict structured components from new unstructured address strings.
+    *   Includes example usage with sample addresses.
+*   **`requirements.txt`**:
+    *   Lists the Python dependencies required for the project (Pandas, TensorFlow, Scikit-learn).
 
-## Dependencies
-
-All Python dependencies required for this project are listed in the `requirements.txt` file. They include:
-
-*   `pandas`
-*   `scikit-learn`
-*   `sklearn-crfsuite`
-*   `joblib`
-
-These can be installed as described in the Setup section.
+This project provides a foundational framework for parsing French addresses. Further improvements could include more sophisticated preprocessing, hyperparameter tuning, and evaluation metrics.
